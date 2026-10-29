@@ -1,278 +1,126 @@
-Wireless daemon for Linux
-*************************
+eiwd
+====
 
-Copyright (C) 2013-2019  Intel Corporation. All rights reserved.
-
-
-Compilation and installation
-============================
-
-In order to compile the source code you need following software packages:
-	- GCC compiler
-	- GNU C library
-	- Embedded Linux library
-	- readline (command line client)
-
-To configure run:
-	./configure --prefix=/usr
-
-Configure automatically searches for all required components and packages.
-
-To compile and install run:
-	make && make install
-
-
-Embedded Linux library
-======================
-
-In order to compile the daemon and control utility the development version
-of Embedded Linux library is required to be present. The development
-repositories can be found here:
-
-	git://git.kernel.org/pub/scm/libs/ell/ell.git
-	https://kernel.googlesource.com/pub/scm/libs/ell/ell.git
-
-The build systems requires that the Embedded Linux library source code
-is available on the same top level directory as the Wireless daemon
-source code:
-
-	.
-	|--- ell
-	|    |--- ell
-	|    `--- unit
-	`--- iwd
-	     |--- src
-	     `--- client
-
-It is not required to build or install Embedded Linux library. The build
-will happen when building the Wireless daemon and it will then be linked
-internally.
-
-When using --enable-external-ell build option, it is not required that the
-Embedded Linux library source code is available in the top level directory.
-
-The tarballs include a copy of the Embedded Linux library source files. When
-building from the tarballs, then it is not required to have the library
-sources available in the top level directory.
-
-
-Manual pages
-============
-
-The manual pages are generated from reStructuredText markup source files
-during the normal build process. The generation requires the rst2man utility
-from Python Docutils project. If rst2man is for some reason not available,
-using --disable-manual-pages will skip the manual pages generation and
-installation.
-
-When building from the tarballs, a copy of the generated manual pages is
-included and the rst2man utility is actually not needed.
-
-
-Configuration and options
-=========================
-
-The configuration system provides switches to disable certain build time
-configuration options which are generally useful and enabled by default:
-
-	--disable-daemon
-
-		Disable installation of Wireless daemon
-
-		By default the Wireless daemon binary iwd is enabled and
-		placed into --libexecdir directory.
-
-	--disable-client
-
-		Disable installation of Wireless client utility
-
-		By default the Wireless client binary iwctl is enabled
-		and place into --bindir directory.
-
-	--disable-monitor
-
-		Disable installation of Wireless monitor utility
-
-		By default the Wireless monitor binary iwmon is enabled
-		and place into --bindir directory.
-
-	--disable-dbus-policy
-
-		Disable installation of D-Bus system policy configuration
-
-		By default the accompanying D-Bus policy file will be
-		installed in the D-Bus data directory. The location of
-		that directory will be automatically detected or can be
-		manually configured via the --with-dbus-datadir option.
-
-		The D-Bus policy is required for daemons to gain service
-		name ownership and clients to access them. When disabling
-		this option, manual installation of D-Bus polices is
-		required.
-
-		Note: This option affects all D-Bus policy configurations.
-
-	--disable-systemd-service
-
-		Disable installation of systemd service configuration
-
-		By default the accompanying systemd service unit with
-		D-Bus autostart configuration will be installed. The
-		locations will be automatically detected or can be
-		manually configured via --with-dbus-busdir option
-		and --with-systemd-unitdir option.
-
-		Using systemd is optional, but highly recommended. When
-		disabling this option, manual installation is required.
-
-		Note: This option affects all systemd unit setups.
-
-	--disable-manual-pages
-
-		Disable generation and installation of manual pages
-
-		By default all available manual pages will be generated
-		and installed. When disabling this options, no manual
-		pages are installed.
-
-		Note: This options affects all manual pages.
-
-When building for a system that wants to use wireless technology, disabling
-any of the above options makes only limited sense. It may break the general
-setup and usability for wireless connections.
-
-The configuration system provides switches for optional build time features
-that can be enabled if the functionality is required:
-
-	--enable-external-ell
-
-		Enable usage of external Embedded Linux library
-
-		This allows using an externally installed Embedded Linux
-		library instead of using the internal copy of ELL.
-
-		Since the public API of Embedded Linux library is not yet
-		stable, the usage of the internal ELL copy is preferred.
-
-	--enable-wired
-
-		Enable installation of Ethernet authentication daemon
-
-		This allows enabling the Ethernet daemon binary ead which
-		is then placed into --libexecdir directory.
-
-		With this option the support for 802.1x for wired Ethernet
-		connections can be enabled. It provides its own D-Bus
-		policy and systemd configuration.
-
-	--enable-hwsim
-
-		Enable installation of Wireless simulation utility
-
-		This allows enabling the Simulation daemon binary hwsim
-		which is then placed into --bindir directory.
-
-		With this utility and mac80211_hwim kernel module the
-		simulation of 802.11 networks can be tested. It provides
-		its own D-Bus policy configuration.
-
-		This utility is only useful for developers and should not
-		be considered for general installation. For this reason
-		no systemd configuration is provided.
-
-	--enable-tools
-
-		Enable compilation of various testing utilities
-
-		This enables building of all utilities that are however
-		not installed and only useful during development.
-
-	--enable-ofono
-
-		Enable support for oFono SIM authentication
-
-		Note: With --disable-daemon this option is ignored
-
-
-Netlink monitoring
-==================
-
-The included iwmon utility can be used to monitor the 802.11 subsystem
-generic netlink commands and events. It uses the nlmon kernel driver
-from Linux 3.10 and later. On startup network monitor interface named
-named 'nlmon' is created unless another interface name is given on the
-command line. If the monitor interface was created by the iwmon utility,
-it will be removed on program exit.
-
-Manually the monitor interface can be created using the following
-commands:
-
-	ip link add name nlmon type nlmon
-	ip link set dev nlmon allmulticast on
-	ip link set dev nlmon up
-
-It is possible to create netlink traces in PCAP format using tcpdump
-and then read them via iwmon utility:
-
-	tcpdump -i nlmon -w trace-file.pcap
-
-The resulting PCAP files will use Linux cooked packet format containing
-packets with ARPHRD_NETLINK type. They can be read using iwmon:
-
-	iwmon -r trace-file.pcap
-
-At this time iwmon is not able to write PCAP files by itself. This might
-change in future versions.
-
-When also the authentication protocol traffic on port 0x888e (ETH_P_PAE)
-is needed, then a second capture is required:
-
-	tcpdump -i any 'ether proto 0x888e' -w trace-pae.pcap
-
-It is possible to combine these two PCAP files using the mergecap utility
-and create a combined trace file:
-
-	mergecap -F pcap -w trace.pcap trace-file.pcap trace-pae.pcap
-
-This will create a trace.pcap file that includes the complete picture
-of nl80211 netlink traffic and authentication messages. All packets are
-merged in chronological order based on timestamps.
-
-Unfortunately it is not possible to instruct tcpdump filtering to do
-this in a single capture. Post-processing of the PCAP files is required
-at the moment.
-
-
-Simulating devices
-==================
-
-The Linux driver mac80211_hwsim provides the functionality to simulate
-Wireless devices using fake virtual air. Just load the module.
-
-	modprobe mac80211_hwsim radios=0
-
-Providing the radios=0 is important since otherwise it starts out with
-two new Wireless radios by default.
-
-With the provided hwsim utility it is now possible to add and remove
-virtual radio devices.
-
-	hwsim --create --keep
-	hwsim --destroy=<radio-id>
-
-The radio id assigned to each virtual device is its internal id used
-by the Wireless device.
-
-
-Information
-===========
-
-Mailing list:
-	https://lists.linux.dev/
-	https://lore.kernel.org/iwd/
-
-IRC:
-	irc://irc.oftc.net/#iwd
-
-Wiki:
-	https://iwd.wiki.kernel.org/
+A D-Bus-free fork of iwd originally patched by dylanaraps. The supported
+build uses a plain Makefile and config.mk. No AutoHell, pkg-config, Python,
+or readline is needed to build the daemon. This should make it easier to
+compile on systems which lack these utilities (like mine).
+
+This project differs from the previous eiwd in that it aims to (eventually)
+recover the lost iwctl feature. At the same time, still being compatible
+with upstream.
+
+Requirements
+------------
+
+Linux, Clang/LLVM (or a compatible C compiler), make, ar, and Linux UAPI
+headers are required. The libc baseline is musl with explicit_bzero and
+reallocarray, or glibc 2.26 or newer. The existing iwd/ELL code uses Linux
+APIs and compiler extensions; this build does not make it POSIX-only.
+
+ELL is an existing project dependency, pinned by the ell-src submodule.
+Initialize it once after cloning:
+
+    git submodule update --init ell-src
+
+The build compiles ELL directly into a private static archive. It never
+runs ELL's configure script or downloads dependencies. An unpacked copy
+of ELL can also be supplied with ELL_DIR=/path/to/ell-source.
+
+Build and install
+-----------------
+
+    make
+    make DESTDIR=/path/to/package install
+
+The default target builds src/iwd. Edit config.mk for paths and tools,
+or override variables on the command line:
+
+    make CC=clang CFLAGS='-O2 -g'
+    make PREFIX=/ DESTDIR=/path/to/package install
+
+PREFIX=/ installs the daemon as /bin/iwd, matching MICE's layout. The
+normal prefix is /usr/local. CONFIGDIR defaults to /etc/iwd and
+STORAGEDIR to /var/lib/iwd. DESTDIR is only a staging prefix; it is never
+compiled into runtime paths. No init service or configuration file is
+installed automatically. Run iwd in the foreground from the init service.
+
+CFLAGS, CPPFLAGS and LDFLAGS are inherited from the environment. CC, AR,
+OPT, LDLIBS and all paths can be overridden on the command line. Run
+make clean before changing compiler, flags, libc, or command-line runtime
+paths; Makefile and config.mk edits already invalidate the objects.
+
+For musllvm, add its bin directory to PATH and use the prefixed tools:
+
+    make clean
+    make CC=x86_64-linux-musl-clang AR=x86_64-linux-musl-ar \
+        LDFLAGS=-static PREFIX=/ DESTDIR=/path/to/package install
+
+The 2026-10-19 musllvm release was used to verify the static x86_64 build:
+https://github.com/cowmonk/musllvm/releases/tag/musllvm-2026-10-19-ec3a09b6c0fc
+
+Additional targets
+------------------
+
+    make monitor           build monitor/iwmon
+    make install-monitor   install iwmon
+    make check             build and run the upstream daemon unit tests
+    make man               render manual pages (requires rst2man)
+    make install-man       install the manual pages
+    make uninstall         remove installed binaries and manuals
+    make clean             remove build outputs and generated test fixtures
+
+The unit tests additionally require OpenSSL's command-line tool to create
+EAPoL certificate fixtures. Some tests require kernel crypto or keyring
+features; they report skips where supported. Tests run from this source
+directory. The Wi-Fi integration suite in autotests/ still uses D-Bus and
+has not been ported.
+
+EAP-SIM/AKA tests assume HMAC-SHA1 and HMAC-SHA256 are available through
+AF_ALG; they fail rather than skip when those algorithms are missing.
+The check runner validates TAP output as well as process exit status.
+
+Current control support
+-----------------------
+
+There is no D-Bus build switch in the supported Makefile, and no iwctl
+target yet. Networks are configured through iwd's existing profile files.
+The daemon still contains upstream D-Bus helpers, and ELL's D-Bus objects
+are compiled to satisfy remaining internal references. No external D-Bus
+library or running bus is required. Removing those internal references
+and adding a local socket client are a future milestone for this project.
+
+Upstream updates
+----------------
+
+Makefile.am and configure.ac remain as upstream import metadata, outside
+the supported build. Keeping their paths allows upstream source-list and
+version changes to merge normally. Do NOT run autoreconf or configure;
+they would overwrite the maintained Makefile and config.h.
+
+After merging an upstream release, refresh the checked-in manifest:
+
+    sh scripts/import-upstream <upstream-release-tag-or-commit>
+    git diff -- mk/sources.mk
+    make clean
+    make
+    make check
+
+The importer reads that Git revision's Makefile.am and configure.ac,
+updates VERSION and the daemon, monitor, ELL, and unit-test source lists,
+and stops on unsupported references or changed assignment forms. It does not merge
+code, fetch anything, or change the ELL pin. Review new source files,
+configuration macros, linker requirements, and internal API changes when
+updating; the importer cannot resolve those changes automatically.
+
+Update ELL separately to a reviewed commit, initialize the pinned source,
+and rebuild. Neither a normal build nor a version bump tracks a moving
+ELL branch automatically. Keep the original iwd release number in the
+manifest so iwd --version identifies the upstream base.
+
+The next client milestone is a separate local control interface and
+client for device status, scanning, and connecting. Upstream's D-Bus
+client sources remain available for reference.
+
+Upstream iwd documentation is in doc/ and the manual-page sources.
+License and authorship information is in COPYING and AUTHORS.

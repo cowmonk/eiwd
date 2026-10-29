@@ -1,0 +1,29 @@
+#!/bin/sh
+# Refresh the checked-in source manifest.
+set -eu
+
+if [ "$#" -ne 1 ]; then
+	printf 'usage: %s upstream-git-ref\n' "$0" >&2
+	exit 1
+fi
+
+cd "$(dirname "$0")/.."
+ref=$1
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/eiwd-import.XXXXXXXX")
+trap 'rm -f "$tmpdir/Makefile.am" "$tmpdir/configure.ac" "$tmpdir/sources.mk"; rmdir "$tmpdir"' 0
+trap 'exit 1' HUP INT TERM
+
+git show "$ref:Makefile.am" > "$tmpdir/Makefile.am"
+git show "$ref:configure.ac" > "$tmpdir/configure.ac"
+version=$(sed -n 's/^AC_INIT(\[iwd\],\[\([^]]*\)\]).*/\1/p' "$tmpdir/configure.ac")
+if [ -z "$version" ]; then
+	printf 'cannot read iwd version from %s\n' "$ref" >&2
+	exit 1
+fi
+
+awk -v version="$version" -f scripts/import-sources.awk \
+	"$tmpdir/Makefile.am" > "$tmpdir/sources.mk"
+if ! cmp -s "$tmpdir/sources.mk" mk/sources.mk; then
+	mv "$tmpdir/sources.mk" mk/sources.mk
+fi
+printf 'Imported iwd %s source lists from %s; review mk/sources.mk before building.\n' "$version" "$ref"

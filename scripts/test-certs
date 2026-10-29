@@ -1,0 +1,35 @@
+#!/bin/sh
+# Fixtures used by the upstream EAPoL unit tests.
+set -eu
+
+openssl genrsa -out unit/cert-ca-key.pem 2048
+openssl req -x509 -new -nodes -extensions ca_ext \
+	-config unit/gencerts.cnf \
+	-subj '/O=International Union of Example Organizations/CN=Certificate issuer guy/emailAddress=ca@mail.example' \
+	-key unit/cert-ca-key.pem -sha256 -days 10000 -out unit/cert-ca.pem
+
+for role in server client; do
+	key=unit/cert-$role-key.pem
+	csr=unit/cert-$role.csr
+	cert=unit/cert-$role.pem
+	case $role in server) organization=Foo ;; client) organization=Bar ;; esac
+	openssl genrsa -out "$key" 2048
+	openssl pkcs8 -topk8 -nocrypt -in "$key" -out "unit/cert-$role-key-pkcs8.pem"
+	openssl req -new -extensions cert_ext -config unit/gencerts.cnf \
+		-subj "/O=$organization Example Organization/CN=$organization Example Organization/emailAddress=$role@mail.example" \
+		-key "$key" -out "$csr"
+	openssl x509 -req -extensions server_ext -extfile unit/gencerts.cnf \
+		-in "$csr" -CA unit/cert-ca.pem -CAkey unit/cert-ca-key.pem \
+		-CAserial unit/cert-ca.srl -CAcreateserial -sha256 -days 10000 -out "$cert"
+done
+
+{
+	printf '%s\n' '[Security]' 'EAP-Method=TLS' 'EAP-Identity=abc@example.com' \
+		'EAP-TLS-CACert=embed:ca_cert' 'EAP-TLS-ClientCert=embed:client_cert' \
+		'EAP-TLS-ClientKey=embed:client_key' '[@pem@ca_cert]'
+	cat unit/cert-ca.pem
+	printf '%s\n' '[@pem@client_cert]'
+	cat unit/cert-client.pem
+	printf '%s\n' '[@pem@client_key]'
+	cat unit/cert-client-key-pkcs8.pem
+} > unit/tls-settings.8021x

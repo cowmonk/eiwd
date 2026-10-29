@@ -11,10 +11,8 @@
 compile_commands.json
 tags
 cscope.*
-Makefile
 Makefile.in
 aclocal.m4
-config.h
 config.h.in
 config.log
 config.status
@@ -25,6 +23,8 @@ stamp-h1
 build-aux
 autom4te.cache
 ell
+build/
+libell.a
 src/iwd
 src/iwd.8
 src/iwd.ap.5

@@ -1,0 +1,41 @@
+#!/bin/sh
+# ELL can report failed TAP cases while returning exit status zero.
+set -u
+log=$(mktemp "${TMPDIR:-/tmp}/eiwd-tests.XXXXXXXX") || exit 1
+trap 'rm -f "$log"' 0
+trap 'exit 1' HUP INT TERM
+failed=0
+
+for test in "$@"; do
+	printf '\nRunning %s\n' "$test"
+	case $test in /*|./*) executable=$test ;; *) executable=./$test ;; esac
+	status=0
+	"$executable" > "$log" 2>&1 || status=$?
+	cat "$log"
+	if [ "$status" -eq 77 ]; then
+		printf 'SKIP %s\n' "$test"
+		continue
+	fi
+	if [ "$status" -ne 0 ] || ! awk '
+		/^Bail out!/ { failed = 1 }
+		/^not ok([ \t]|$)/ {
+			count++
+			if ($0 !~ /#[ \t]*TODO/)
+				failed = 1
+		}
+		/^ok([ \t]|$)/ { count++ }
+		/^1\.\.[0-9]+/ {
+			if (seen++)
+				failed = 1
+			plan = $0
+			sub(/^1\.\./, "", plan)
+			plan += 0
+		}
+		END { exit (failed || !seen || count != plan) }
+	' "$log"; then
+		printf 'FAIL %s (exit %s)\n' "$test" "$status"
+		failed=1
+	fi
+done
+
+exit "$failed"
