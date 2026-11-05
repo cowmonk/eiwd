@@ -28,8 +28,8 @@ $(IWD_OBJ) $(MONITOR_OBJ) $(TEST_OBJ): Makefile config.h config.mk mk/sources.mk
 
 $(ELL_OBJ): Makefile config.h config.mk mk/sources.mk $(ELL_HEADERS) $(ELL_DIR)/ell/ell.h
 	mkdir -p build/ell
-	source=$@; source=$(ELL_DIR)/ell/$${source##*/}; \
-	$(CC) $(BUILD_CPPFLAGS) $(BUILD_CFLAGS) -c -o $@ "$${source%.o}.c"
+	source=$(ELL_DIR)/ell/$$(basename "$@" .o).c; \
+	$(CC) $(BUILD_CPPFLAGS) $(BUILD_CFLAGS) -c -o $@ "$$source"
 
 libell.a: $(ELL_OBJ)
 	rm -f $@
@@ -80,7 +80,8 @@ install-monitor: monitor
 
 install-man: man
 	for page in $(MANPAGES); do \
-		section=$${page##*.}; name=$${page##*/}; \
+		section=$$(printf '%s\n' "$$page" | sed 's/.*\.//'); \
+		name=$$(basename "$$page"); \
 		mkdir -p $(DESTDIR)$(MANDIR)/man$$section; \
 		cp $$page $(DESTDIR)$(MANDIR)/man$$section/$$name || exit 1; \
 		chmod 644 $(DESTDIR)$(MANDIR)/man$$section/$$name || exit 1; \
@@ -89,7 +90,8 @@ install-man: man
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/iwd $(DESTDIR)$(BINDIR)/iwmon
 	for page in $(MANPAGES); do \
-		section=$${page##*.}; name=$${page##*/}; \
+		section=$$(printf '%s\n' "$$page" | sed 's/.*\.//'); \
+		name=$$(basename "$$page"); \
 		rm -f $(DESTDIR)$(MANDIR)/man$$section/$$name; \
 	done
 
