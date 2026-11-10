@@ -1,0 +1,48 @@
+better* iwctl
+=============
+
+After wracking my brain over how I'm going to do this, I'm just going to
+literally wing it.
+
+This is the first piece of the new iwctl. It connects to iwd over a local
+Unix socket, sends ping!, and expects pong! back. On success it prints:
+
+    ping! pong!
+
+Start the daemon in one terminal (as root):
+
+    ./src/iwd
+
+Then run the client in another (also as root):
+
+    ./ctl/iwctl
+
+The default socket is /run/eiwd.sock, set by CONTROLSOCKET in config.mk.
+IWD_CONTROL_SOCKET overrides the path at runtime; set the same value for
+both processes. The socket is created with mode 0600, so the client needs
+to run as its owner, normally root (sorry). The exchange uses SOCK_SEQPACKET.
+It allows 16 active clients since idk, one of these days someone will need
+that I suppose.
+
+Source map, relative to the project root for any contributors:
+
+    ctl/main.c          client connection, exchange, and result
+    shared/control.h    protocol definitions (very large tmb)
+    src/control.c       listener and client handling in ELL's event loop
+    src/control.h       control_init() and control_exit()
+    src/main.c          starts and stops the listener with iwd
+
+Normal shutdown removes the socket. Existing paths are never overwritten;
+a stale socket left by a crash needs manual removal after confirming that
+the old daemon is no longer running. TL;DR just your regular dameon/client
+socket stuffs.
+
+*footnote: ahem, the author (me) makes no guarantees that this is going to
+be good.
+
+TODOs (in no particular order)
+------------------------------
+    - ability to get devices (probably first thing)
+    - list networks && scanning
+    - connect to WPA/psk network
+    - misc options and commands

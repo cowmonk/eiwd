@@ -83,12 +83,7 @@ The check runner validates TAP output as well as process exit status.
 Current control support
 -----------------------
 
-There is no D-Bus build switch in the supported Makefile, and no iwctl
-target yet. Networks are configured through iwd's existing profile files.
-The daemon still contains upstream D-Bus helpers, and ELL's D-Bus objects
-are compiled to satisfy remaining internal references. No external D-Bus
-library or running bus is required. Removing those internal references
-and adding a local socket client are a future milestone for this project.
+Read ctl/README.
 
 Upstream updates
 ----------------

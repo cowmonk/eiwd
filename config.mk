@@ -4,6 +4,7 @@ BINDIR = $(PREFIX)/bin
 MANDIR = $(PREFIX)/share/man
 CONFIGDIR = /etc/iwd
 STORAGEDIR = /var/lib/iwd
+CONTROLSOCKET = /run/eiwd.sock
 
 # Command-line assignments override these settings. CFLAGS, CPPFLAGS and
 # LDFLAGS can also be supplied through the environment.

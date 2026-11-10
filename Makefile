@@ -1,6 +1,6 @@
 .POSIX:
 
-all: src/iwd
+all: src/iwd ctl/iwctl
 
 include config.mk
 include mk/sources.mk
@@ -9,9 +9,11 @@ BUILD_CPPFLAGS = -I$(ELL_DIR) -I. -DHAVE_CONFIG_H \
 	-Dtypeof=__typeof__ \
 	-DVERSION='"$(VERSION)"' -DDAEMON_CONFIGDIR='"$(CONFIGDIR)"' \
 	-DDAEMON_STORAGEDIR='"$(STORAGEDIR)"' \
+	-DCONTROL_SOCKET_PATH='"$(CONTROLSOCKET)"' \
 	-DUNITDIR='"unit/"' -DCERTDIR='"unit/"' $(CPPFLAGS)
 BUILD_CFLAGS = -std=c99 -fvisibility=hidden $(OPT) $(CFLAGS)
-IWD_OBJ = $(IWD_SRC:.c=.o)
+IWD_OBJ = $(IWD_SRC:.c=.o) src/control.o
+CTL_OBJ = ctl/main.o
 MONITOR_OBJ = $(MONITOR_SRC:.c=.o)
 MANPAGES = src/iwd.8 src/iwd.debug.7 src/iwd.config.5 \
 	src/iwd.network.5 src/iwd.ap.5 monitor/iwmon.1
@@ -24,7 +26,9 @@ CERTS = unit/cert-ca.pem unit/cert-server.pem \
 .c.o:
 	$(CC) $(BUILD_CPPFLAGS) $(BUILD_CFLAGS) -c -o $@ $<
 
-$(IWD_OBJ) $(MONITOR_OBJ) $(TEST_OBJ): Makefile config.h config.mk mk/sources.mk $(HEADERS) $(ELL_HEADERS) $(ELL_DIR)/ell/ell.h
+$(IWD_OBJ) $(CTL_OBJ) $(MONITOR_OBJ) $(TEST_OBJ): Makefile config.h config.mk mk/sources.mk $(HEADERS) $(ELL_HEADERS) $(ELL_DIR)/ell/ell.h
+
+src/main.o src/control.o ctl/main.o: src/control.h shared/control.h
 
 $(ELL_OBJ): Makefile config.h config.mk mk/sources.mk $(ELL_HEADERS) $(ELL_DIR)/ell/ell.h
 	mkdir -p build/ell
@@ -37,6 +41,9 @@ libell.a: $(ELL_OBJ)
 
 src/iwd: $(IWD_OBJ) libell.a
 	$(CC) $(LDFLAGS) -o $@ $(IWD_OBJ) libell.a $(LDLIBS)
+
+ctl/iwctl: $(CTL_OBJ) libell.a
+	$(CC) $(LDFLAGS) -o $@ $(CTL_OBJ) libell.a $(LDLIBS)
 
 monitor: monitor/iwmon
 
@@ -70,7 +77,8 @@ man: $(MANPAGES)
 install: all
 	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(CONFIGDIR) $(DESTDIR)$(STORAGEDIR)
 	cp src/iwd $(DESTDIR)$(BINDIR)/iwd
-	chmod 755 $(DESTDIR)$(BINDIR)/iwd
+	cp ctl/iwctl $(DESTDIR)$(BINDIR)/iwctl
+	chmod 755 $(DESTDIR)$(BINDIR)/iwd $(DESTDIR)$(BINDIR)/iwctl
 	chmod 700 $(DESTDIR)$(STORAGEDIR)
 
 install-monitor: monitor
@@ -88,7 +96,7 @@ install-man: man
 	done
 
 uninstall:
-	rm -f $(DESTDIR)$(BINDIR)/iwd $(DESTDIR)$(BINDIR)/iwmon
+	rm -f $(DESTDIR)$(BINDIR)/iwd $(DESTDIR)$(BINDIR)/iwctl $(DESTDIR)$(BINDIR)/iwmon
 	for page in $(MANPAGES); do \
 		section=$$(printf '%s\n' "$$page" | sed 's/.*\.//'); \
 		name=$$(basename "$$page"); \
@@ -96,6 +104,6 @@ uninstall:
 	done
 
 clean:
-	rm -f $(IWD_OBJ) $(MONITOR_OBJ) $(TEST_OBJ) $(ELL_OBJ) libell.a \
-		src/iwd monitor/iwmon $(TESTS) $(MANPAGES) \
+	rm -f $(IWD_OBJ) $(CTL_OBJ) $(MONITOR_OBJ) $(TEST_OBJ) $(ELL_OBJ) libell.a \
+		src/iwd ctl/iwctl monitor/iwmon $(TESTS) $(MANPAGES) \
 		unit/cert-*.pem unit/cert-*.csr unit/cert-*.srl unit/tls-settings.8021x

@@ -51,6 +51,7 @@
 #include "src/anqp.h"
 #include "src/netconfig.h"
 #include "src/crypto.h"
+#include "src/control.h"
 
 #include "src/backtrace.h"
 
@@ -471,8 +472,9 @@ int main(int argc, char *argv[])
 	int exit_status;
 	struct l_dbus *dbus;
 	const char *config_dir;
+	const char *control_path;
 	char **config_dirs;
-	int i;
+	int i, err;
 
 	for (;;) {
 		int opt;
@@ -616,8 +618,18 @@ int main(int argc, char *argv[])
 	if (!setup_system_key())
 		goto failed_storage;
 
+	control_path = getenv("IWD_CONTROL_SOCKET");
+	if (!control_path)
+		control_path = CONTROL_SOCKET_PATH;
+	err = control_init(control_path);
+	if (err < 0) {
+		l_error("Unable to listen on %s: %s", control_path, strerror(-err));
+		goto failed_storage;
+	}
+
 	exit_status = l_main_run_with_signal(signal_handler, NULL);
 
+	control_exit();
 	iwd_modules_exit();
 	storage_exit();
 

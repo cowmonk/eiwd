@@ -33,6 +33,7 @@ src/iwd.config.5
 src/iwd.network.5
 src/iwd.service
 client/iwctl
+ctl/iwctl
 client/iwctl.1
 monitor/iwmon
 monitor/iwmon.1
