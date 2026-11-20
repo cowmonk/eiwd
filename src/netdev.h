@@ -155,6 +155,7 @@ int netdev_set_4addr(struct netdev *netdev, bool use_4addr,
 			netdev_destroy_func_t destroy);
 bool netdev_get_4addr(struct netdev *netdev);
 const char *netdev_get_name(struct netdev *netdev);
+bool netdev_foreach_name(bool (*visit)(const char *, void *), void *data);
 bool netdev_get_is_up(struct netdev *netdev);
 const char *netdev_get_path(struct netdev *netdev);
 uint8_t netdev_get_rssi_level_idx(struct netdev *netdev);

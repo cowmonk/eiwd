@@ -4,5 +4,6 @@
 /* very extensive and feature complete shared protocol */
 #define CONTROL_PING "ping!"
 #define CONTROL_PONG "pong!"
+#define CONTROL_DEVICE_LIST "device list"
 
 #endif

@@ -10,6 +10,8 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "src/netdev.h"
+
 struct ControlClient {
 	struct l_io *io;
 	struct l_timeout *timeout;
@@ -45,9 +47,18 @@ client_timeout(struct l_timeout *timeout, void *data)
 }
 
 static bool
+send_name(const char *name, void *data)
+{
+	int fd = *(int *)data;
+	size_t size = strlen(name) + 1;
+
+	return L_TFR(send(fd, name, size, MSG_NOSIGNAL)) == (ssize_t)size;
+}
+
+static bool
 client_read(struct l_io *io, void *data)
 {
-	char request[sizeof(CONTROL_PING)];
+	char request[sizeof(CONTROL_DEVICE_LIST)];
 	ssize_t len;
 	int fd = l_io_get_fd(io);
 
@@ -56,10 +67,11 @@ client_read(struct l_io *io, void *data)
 		return true;
 	if (len == sizeof(CONTROL_PING) - 1 &&
 			!memcmp(request, CONTROL_PING, len)) {
-		do {
-			len = send(fd, CONTROL_PONG, sizeof(CONTROL_PONG) - 1,
-					MSG_NOSIGNAL);
-		} while (len < 0 && errno == EINTR);
+		L_TFR(send(fd, CONTROL_PONG, sizeof(CONTROL_PONG) - 1, MSG_NOSIGNAL));
+	} else if (len == sizeof(CONTROL_DEVICE_LIST) - 1 &&
+			!memcmp(request, CONTROL_DEVICE_LIST, len)) {
+		if (netdev_foreach_name(send_name, &fd))
+			send_name("", &fd);
 	}
 
 	/* Let the disconnect handler release this client's watch. */

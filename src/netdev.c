@@ -425,6 +425,22 @@ const char *netdev_get_name(struct netdev *netdev)
 	return netdev->name;
 }
 
+bool netdev_foreach_name(bool (*visit)(const char *, void *), void *data)
+{
+	const struct l_queue_entry *e;
+
+	for (e = l_queue_get_entries(netdev_list); e; e = e->next) {
+		struct netdev *netdev = e->data;
+
+		if (!netdev->events_ready || netdev->type == NETDEV_IFTYPE_P2P_CLIENT ||
+				netdev->type == NETDEV_IFTYPE_P2P_GO)
+			continue;
+		if (!visit(netdev->name, data))
+			return false;
+	}
+	return true;
+}
+
 bool netdev_get_is_up(struct netdev *netdev)
 {
 	bool powered = (netdev->ifi_flags & IFF_UP) != 0;
