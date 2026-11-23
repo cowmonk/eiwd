@@ -5037,6 +5037,17 @@ void station_network_foreach(struct station *station,
 	l_hashmap_foreach(station->networks, network_foreach, &data);
 }
 
+void station_foreach_network(struct station *station,
+				void (*func)(struct network *, void *),
+				void *user_data)
+{
+	const struct l_queue_entry *entry;
+
+	for (entry = l_queue_get_entries(station->networks_sorted); entry;
+							entry = entry->next)
+		func(entry->data, user_data);
+}
+
 struct l_queue *station_get_bss_list(struct station *station)
 {
 	return station->bss_list;

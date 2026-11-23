@@ -104,6 +104,10 @@ void station_network_foreach(struct station *station,
 				station_network_foreach_func_t func,
 				void *user_data);
 struct l_queue *station_get_bss_list(struct station *station);
+/* the networks seen by the station, strongest first */
+void station_foreach_network(struct station *station,
+				void (*func)(struct network *, void *),
+				void *user_data);
 struct scan_bss *station_get_connected_bss(struct station *station);
 
 int station_hide_network(struct station *station, struct network *network);

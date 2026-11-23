@@ -3,7 +3,6 @@
 
 #include <ell/ell.h>
 #include <errno.h>
-#include <net/if.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,22 +11,55 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+static void
+usage(void)
+{
+	l_error("usage: iwctl [device list | status | networks | "
+		"connect SSID [PASSPHRASE] | disconnect]");
+}
+
+/* the request the words make: tabs between them, but "device list", which
+ * is one word of the protocol written as two */
+static bool
+make_request(int argc, char **argv, char *request, size_t size)
+{
+	int n;
+
+	if (argc == 1) {
+		snprintf(request, size, "%s", CONTROL_PING);
+		return true;
+	}
+	if (argc == 3 && !strcmp(argv[1], "device") && !strcmp(argv[2], "list")) {
+		snprintf(request, size, "%s", CONTROL_DEVICE_LIST);
+		return true;
+	}
+	if ((argc == 2 && (!strcmp(argv[1], CONTROL_STATUS) ||
+				!strcmp(argv[1], CONTROL_NETWORKS) ||
+				!strcmp(argv[1], CONTROL_DISCONNECT))) ||
+			((argc == 3 || argc == 4) && !strcmp(argv[1], CONTROL_CONNECT))) {
+		n = snprintf(request, size, "%s", argv[1]);
+		for (int i = 2; i < argc && n > 0 && (size_t)n < size; i++)
+			n += snprintf(request + n, size - n, "\t%s", argv[i]);
+		return n > 0 && (size_t)n < size;
+	}
+	return false;
+}
+
 int
 main(int argc, char **argv)
 {
 	struct sockaddr_un address = { .sun_family = AF_UNIX };
-	struct timeval timeout = { .tv_sec = 3 };
+	struct timeval timeout = { .tv_sec = 5 };
 	const char *path = getenv("IWD_CONTROL_SOCKET");
-	bool list = argc == 3 && !strcmp(argv[1], "device") && !strcmp(argv[2], "list");
-	const char *request = list ? CONTROL_DEVICE_LIST : CONTROL_PING;
-	char reply[IF_NAMESIZE];
+	char request[CONTROL_REQUEST_MAX], reply[CONTROL_REPLY_MAX];
+	bool ping = argc == 1, failed = false;
 	ssize_t len;
-	int fd;
+	int fd = -1;
 
 	l_log_set_stderr();
 	l_log_set_ident("iwctl");
-	if (argc != 1 && !list) {
-		l_error("usage: iwctl [device list]");
+	if (!make_request(argc, argv, request, sizeof(request))) {
+		usage();
 		return EXIT_FAILURE;
 	}
 	if (!path)
@@ -47,26 +79,28 @@ main(int argc, char **argv)
 	if (L_TFR(send(fd, request, strlen(request), MSG_NOSIGNAL)) < 0)
 		goto error;
 	for (;;) {
-		len = L_TFR(recv(fd, reply, sizeof(reply), MSG_TRUNC));
+		len = L_TFR(recv(fd, reply, sizeof(reply) - 1, MSG_TRUNC));
 		if (len < 0)
 			goto error;
-		if (!list && len == sizeof(CONTROL_PONG) - 1 &&
-				!memcmp(reply, CONTROL_PONG, len)) {
-			puts("ping! pong!");
+		if (len == 0)
 			break;
-		}
-		if (!list || len < 1 || (size_t)len > sizeof(reply) ||
-				strnlen(reply, len) != (size_t)len - 1) {
+		if ((size_t)len >= sizeof(reply) || reply[len - 1]) {
 			errno = EPROTO;
 			goto error;
 		}
+		if (ping && !strcmp(reply, CONTROL_PONG)) {
+			puts("ping! pong!");
+			break;
+		}
 		if (!reply[0])
 			break;
+		if (!strncmp(reply, "error ", 6))
+			failed = true;
 		if (puts(reply) == EOF)
 			break;
 	}
 	close(fd);
-	return fflush(stdout) || ferror(stdout) ? EXIT_FAILURE : EXIT_SUCCESS;
+	return fflush(stdout) || ferror(stdout) || failed ? EXIT_FAILURE : EXIT_SUCCESS;
 
 error:
 	l_error("%s: %s", path, strerror(errno));
