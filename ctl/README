@@ -21,6 +21,22 @@ To print one wireless interface name per line:
 
     ./ctl/iwctl device list
 
+To get the status:
+
+    ./ctl/iwctl status
+
+To get the networks:
+
+    ./ctl/iwctl networks
+
+To connect to a network:
+
+    ./ctl/iwctl connect SSID [PASSPHRASE]
+
+To disconnect from the network
+
+   ./ctl/iwctl disconnect
+
 An empty list prints nothing. Each name comes in its own packet with a
 trailing NUL. An empty name ends the list.
 
@@ -47,8 +63,10 @@ socket stuffs.
 *footnote: ahem, the author (me) makes no guarantees that this is going to
 be good.
 
+P.S. Thank you xplshn for this amazing work (added connect/status/disconnect)!
+
 TODOs (in no particular order)
 ------------------------------
-    - list networks && scanning
-    - connect to WPA/psk network
     - misc options and commands
+    - (maybe) improve iwctl interface
+    - allow specification of the actual wireless device (iwctl station [dev])
